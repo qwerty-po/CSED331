@@ -203,6 +203,8 @@ module Halt_Check(input is_ecall, input [31:0] X17, output reg is_halted);
       else
         is_halted = 0;
     end
+    else
+      is_halted = 0;
   end
 endmodule
 
@@ -352,13 +354,13 @@ module ControlUnit (input reset, input clk, input bcond, input [6:0]part_of_inst
         end
 
         8: begin
-          alusrcA <= 1; alusrcB <= 2'b00; aluop <= 2'b01; pcsource <= 1; ALUOut_update <= 0; pcwr_not_cond <= 0;
+          alusrcA <= 1; alusrcB <= 2'b00; aluop <= 2'b01; pcsource <= 1; ALUOut_update <= 0; pcwr_not_cond <= 0; 
           current_status <= 9;
         end
 
         9: begin
           if(bcond) begin
-            mem_read <= 1; irwrite <= 1; alusrcA <= 0; alusrcB <= 2'b10; aluop <= 0; pcwrite <= 1;
+            mem_read <= 1; alusrcA <= 0; alusrcB <= 2'b10; aluop <= 0; pcwrite <= 1;
             pcsource <= 0; iord <= 0; ALUOut_update <= 0;
             current_status <= 0;
           end
