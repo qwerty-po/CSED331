@@ -1,0 +1,1 @@
+zip -r Lab1_10_20200013_20200301 ALU/alu.v ALU/alu_func.v vending_machine/calculate_current_state.v vending_machine/change_state.v vending_machine/check_time_and_coin.v  vending_machine/vending_machine_def.v vending_machine/vending_machine.v
