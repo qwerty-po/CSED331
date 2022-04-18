@@ -6,7 +6,6 @@ module top;
   reg clk;
   wire is_halted;
   reg [31:0] total_cycle;
-  integer reg_fd;
 
   CPU cpu(
     .reset(reset), 
@@ -16,7 +15,6 @@ module top;
 
   // Initialize values for simulation
   initial begin
-    reg_fd =  $fopen("./register_state", "w");
     clk = 1'b0;
     reset = 0;
     total_cycle = 32'b0;
@@ -43,12 +41,6 @@ module top;
       for (i = 0; i < 32; i = i + 1)
         $display("%d %x\n", i, cpu.reg_file.rf[i]);
       $finish();
-    end
-    else if(total_cycle < 1000) begin
-      $fwrite(reg_fd, "TOTAL CYCLE %d\n", total_cycle);
-        // Print register values
-        for (i = 0; i < 32; i = i + 1)
-          $fwrite(reg_fd, "%d: %x\n", i, cpu.reg_file.rf[i]);
     end
   end
 

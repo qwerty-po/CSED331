@@ -14,10 +14,6 @@ module Memory #(parameter MEM_DEPTH = 16384) (input reset,
 
   // Asynchrnously read data from the memory
   assign dout = (mem_read) ? mem[mem_addr] : 32'b0;
-  // always @(*) begin
-  //   if(mem_read)
-  //     $display("mem_read: %x", dout);
-  // end
 
   always @(posedge clk) begin
     // Initialize data memory (do not touch)
@@ -25,7 +21,7 @@ module Memory #(parameter MEM_DEPTH = 16384) (input reset,
       for (i = 0; i < MEM_DEPTH; i = i + 1)
         mem[i] = 32'b0;
       // Provide path of the file including instructions with binary format
-      $readmemh("./scoring_tb/recursive_mem.txt", mem);
+      $readmemh("./scoring_tb/ifelse_mem.txt", mem);
     end
 
     // Synchronously write data to the memory

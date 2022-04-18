@@ -23,6 +23,7 @@ module CPU(input reset,       // positive reset signal
   wire [31:0] Alu_in_1; wire [31:0] Alu_in_2;
   wire [31:0] alu_out; wire bcond;
   wire [31:0] X17_or_rs1;
+  wire [31:0] A_wire; wire [31:0] B_wire; wire [31:0] IR_wire; wire [31:0] MDR_wire; wire [31:0] ALUOut_wire;
 
   /***** Register declarations *****/
   reg [31:0] IR; // instruction register
@@ -79,8 +80,8 @@ module CPU(input reset,       // positive reset signal
     .rd(IR[11:7]),           // input
     .rd_din(WR_data),       // input
     .write_enable(RegWrite),    // input
-    .rs1_dout(A),     // output
-    .rs2_dout(B)      // output
+    .rs1_dout(A_wire),     // output
+    .rs2_dout(B_wire)      // output
   );
 
   // ---------- Memory ----------
@@ -96,14 +97,16 @@ module CPU(input reset,       // positive reset signal
 
   Wire_Reg_Connector WRC1(
     .wire_in(mem_data),
+    .reg_in(IR),
     .ctrl_unit(IRWrite),
-    .reg_out(IR)
+    .reg_out(IR_wire)
   );
 
   Wire_Reg_Connector WRC2(
     .wire_in(mem_data),
+    .reg_in(MDR),
     .ctrl_unit(Mem_Read),
-    .reg_out(MDR)
+    .reg_out(MDR_wire)
   );
 
   // ---------- Control Unit ----------
@@ -169,7 +172,8 @@ module CPU(input reset,       // positive reset signal
   Wire_Reg_Connector WRC4(
     .wire_in(alu_out),
     .ctrl_unit(ALUOut_update),
-    .reg_out(ALUOut)
+    .reg_in(ALUOut),
+    .reg_out(ALUOut_wire)
   );
 
   MUX_2_1 ALU_result_OR_ALUOut(
@@ -184,13 +188,11 @@ module CPU(input reset,       // positive reset signal
     .X17(A),
     .is_halted(is_halted)
   );
-  
-endmodule
 
-module Assigner(input [31:0] src, output reg [31:0] dest);
   always @(*) begin
-    dest = src;
+    A = A_wire; B = B_wire; MDR = MDR_wire; ALUOut = ALUOut_wire; IR = IR_wire;
   end
+  
 endmodule
 
 module Halt_Check(input is_ecall, input [31:0] X17, output reg is_halted);
@@ -234,18 +236,10 @@ module MUX_4_1(input [31:0]if_0, input [31:0]if_1, input [31:0]if_2, input [31:0
 
 endmodule
 
-module Wire_Reg_Connector (input [31:0]wire_in, input ctrl_unit, output reg [31:0]reg_out);
-  always @(*) begin
-    if(ctrl_unit)
-      reg_out = wire_in;
-  end
-endmodule
+module Wire_Reg_Connector (input [31:0]wire_in, input [31:0] reg_in, input ctrl_unit, output [31:0]reg_out);
 
-module CLK_updater(input clk, input [31:0]wire_in, input ctrl_unit, output reg [31:0]reg_out);
-  always @(posedge clk) begin
-    if(ctrl_unit)
-      reg_out = wire_in;
-  end
+  assign reg_out = ctrl_unit ? wire_in : reg_in;
+
 endmodule
 
 module IS_PCJump (input bcond, input pcwr_not_cond, input pcwrite, output is_pc_change);
