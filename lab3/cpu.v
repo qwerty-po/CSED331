@@ -255,6 +255,7 @@ module PC(input reset, input clk, input is_pc_change, input [31:0]next_pc, outpu
       current_pc <= 0;
     else if(is_pc_change) begin
       current_pc <= next_pc;
+      $display("%x", next_pc);
     end
   end
 
