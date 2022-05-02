@@ -7,7 +7,6 @@
 // (e.g., port declarations, remove modules, define new modules, ...)
 // 3. You might need to describe combinational logics to drive them into the module (e.g., mux, and, or, ...)
 // 4. `include files if required
-`include "opcodes.v"
 
 module CPU(input reset,       // positive reset signal
            input clk,         // clock signal
@@ -26,6 +25,7 @@ module CPU(input reset,       // positive reset signal
   wire [31:0] alu_forwarded_rs1; wire [31:0] alu_forwarded_rs2;
   wire is_stall;
   wire [1:0] next_counter;
+  wire permanent_stall_wire;
 
   /***** Register declarations *****/
   // You need to modify the width of registers
@@ -233,8 +233,12 @@ module CPU(input reset,       // positive reset signal
   Halt_Check halt_check(
     .is_ecall(ID_EX_is_ecall),
     .X17(EX_MEM_alu_out),
-    .permanent_stall(permanent_stall)
+    .permanent_stall(permanent_stall_wire)
   );
+  
+  always @(*) begin
+    permanent_stall = permanent_stall_wire;
+  end
 
   Evict_ALL evict_all(
     .reset(reset),
