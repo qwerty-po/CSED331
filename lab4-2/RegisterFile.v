@@ -16,10 +16,8 @@ module RegisterFile(input	reset,
   assign rs1_dout = rf[rs1];
   assign rs2_dout = rf[rs2];
   always @(posedge clk) begin
-    if (write_enable & (rd != 0)) begin
+    if (write_enable & (rd != 0))
       rf[rd] <= rd_din;
-      $display("rd - %d, rd_din - %x", rd, rd_din);
-    end
   end
 
   // Initialize register file (do not touch)

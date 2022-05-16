@@ -31,6 +31,7 @@ module CPU(input reset,       // positive reset signal
 
   wire [31:0] predict_pc; wire [31:0] jump_pc; wire is_branch; wire real_branch_needed;
   wire is_jal_jalr;
+  wire branch_occured; wire is_pc_plus_4;
 
   /***** Register declarations *****/
   // You need to modify the width of registers
@@ -91,10 +92,13 @@ module CPU(input reset,       // positive reset signal
   
   Branch_Predictor branch_predictor(
     .reset(reset),
+    .clk(clk),
     .is_stall(is_stall),
     .current_pc(current_pc),
     .is_branch(is_branch),
     .ID_EX_pc(ID_EX_pc),
+    .branch_occured(branch_occured),
+    .is_pc_plus_4(is_pc_plus_4),
     .jump_pc(jump_pc),
     .predict_pc(predict_pc)
   );
@@ -287,6 +291,8 @@ module CPU(input reset,       // positive reset signal
     .IF_ID_pc(IF_ID_pc),
     .alu_bcond(alu_bcond),
     .is_branch(is_branch),
+    .branch_occured(branch_occured),
+    .is_pc_plus_4(is_pc_plus_4),
     .is_jal_jalr(is_jal_jalr),
     .jump_pc(jump_pc)
   );
@@ -411,15 +417,20 @@ module STALL(input [4:0] ID_rs1, input [4:0] ID_rs2, input [4:0] ID_EX_rd, input
   end
 endmodule
 
-module Branch_Manager (input reset, input [31:0] ID_EX_alu_op, input [31:0] ID_EX_rs1_data, input [31:0] ID_EX_imm, input [31:0] ID_EX_pc, input [31:0] IF_ID_pc, input alu_bcond, output reg is_branch, output reg is_jal_jalr, output reg [31:0] jump_pc);
+module Branch_Manager (input reset, input [31:0] ID_EX_alu_op, input [31:0] ID_EX_rs1_data, input [31:0] ID_EX_imm, input [31:0] ID_EX_pc, input [31:0] IF_ID_pc, input alu_bcond, 
+  output reg is_branch, output reg is_jal_jalr, output reg [31:0] jump_pc, output reg branch_occured, output reg is_pc_plus_4);
   always @(*) begin
     is_jal_jalr = 0;
     if(reset) begin
       is_branch = 0;
       jump_pc = 0;
+      branch_occured = 0;
+      is_pc_plus_4 = 1;
     end
     else if(ID_EX_alu_op[6:0] == `JAL) begin
       is_jal_jalr = 1;
+      branch_occured = 1;
+      is_pc_plus_4 = 0;
       if(IF_ID_pc != ID_EX_pc + ID_EX_imm) begin
         is_branch = 1;
         jump_pc = ID_EX_pc + ID_EX_imm;
@@ -431,6 +442,8 @@ module Branch_Manager (input reset, input [31:0] ID_EX_alu_op, input [31:0] ID_E
     end
     else if(ID_EX_alu_op[6:0] == `JALR) begin
       is_jal_jalr = 1;
+      branch_occured = 1;
+      is_pc_plus_4 = 0;
       if(IF_ID_pc != ID_EX_rs1_data + ID_EX_imm) begin
         is_branch = 1;
         jump_pc = ID_EX_rs1_data + ID_EX_imm;
@@ -440,47 +453,95 @@ module Branch_Manager (input reset, input [31:0] ID_EX_alu_op, input [31:0] ID_E
         jump_pc = 0;
       end
     end
-    else if(ID_EX_alu_op[6:0] == `BRANCH && alu_bcond && IF_ID_pc != ID_EX_pc + ID_EX_imm) begin
-      is_branch = 1;
-      jump_pc = ID_EX_pc + ID_EX_imm;
+    else if(ID_EX_alu_op[6:0] == `BRANCH && alu_bcond) begin
+      branch_occured = 1;
+      is_pc_plus_4 = 0;
+      if(IF_ID_pc != ID_EX_pc + ID_EX_imm) begin
+        is_branch = 1;
+        jump_pc = ID_EX_pc + ID_EX_imm;
+      end
+      else begin
+        is_branch = 0;
+        jump_pc = 0;
+      end
     end
-    else if(ID_EX_alu_op[6:0] == `BRANCH && !alu_bcond && IF_ID_pc != ID_EX_pc + 4) begin
-      is_branch = 1;
-      jump_pc = ID_EX_pc + 4;
+    else if(ID_EX_alu_op[6:0] == `BRANCH && !alu_bcond) begin
+      branch_occured = 1;
+      is_pc_plus_4 = 1;
+      if(IF_ID_pc != ID_EX_pc + 4) begin
+        is_branch = 1;
+        jump_pc = ID_EX_pc + 4;
+      end
+      else begin
+        is_branch = 0;
+        jump_pc = 0;
+      end
     end
     else begin
+      is_pc_plus_4 = 1;
+      branch_occured = 0;
       is_branch = 0;
       jump_pc = 0;
     end
   end
 endmodule
 
-module Branch_Predictor(input reset, input is_stall, input [31:0] current_pc, input is_branch, input [31:0] ID_EX_pc, input [31:0] jump_pc, output reg [31:0]predict_pc);
+module Branch_Predictor(input reset, input clk, input is_stall, input [31:0] current_pc, input is_branch, input [31:0] ID_EX_pc, input branch_occured, input is_pc_plus_4, input [31:0] jump_pc, output reg [31:0]predict_pc);
   integer i;
   reg [31:0] TAG [31:0];
   reg [31:0] BTB [31:0]; // 2 bit LSB used to valid
+  reg [2:0] BHT;
 
   always @(*) begin
     if(reset)
       predict_pc = 0;
     else if(is_stall)
       predict_pc = current_pc;
-    else if(BTB[current_pc[6:2]][1:0] == 2'b01 && TAG[current_pc[6:2]] == current_pc[31:0])
-      predict_pc = {BTB[current_pc[6:2]][31:2], 2'b00};
+    else if(BTB[current_pc[6:2]][1:0] == 2'b01 && TAG[current_pc[6:2]] == current_pc[31:0]) begin
+      if(BHT[1:0] >= 2'b10)
+        predict_pc = {BTB[current_pc[6:2]][31:2], 2'b00};
+      else
+        predict_pc = current_pc + 4;
+    end
     else
       predict_pc = current_pc + 4;
   end
 
-  always @(*) begin
+  always @(posedge clk) begin
     if(reset) begin
       for(i = 0; i < 32; i = i+1) begin
-        BTB[i] = 32'b0;
-        TAG[i] = 32'b0;
+        BTB[i] <= 32'b0;
+        TAG[i] <= 32'b0;
       end
+      BHT <= 2'b00;
     end
-    if(is_branch && jump_pc != ID_EX_pc + 4) begin
-      BTB[ID_EX_pc[6:2]] = {jump_pc[31:2], 2'b01};
-      TAG[ID_EX_pc[6:2]] = ID_EX_pc[31:0];
+    else if(branch_occured) begin
+      if(is_pc_plus_4) begin
+        case (BHT[1:0])
+          2'b00:
+            BHT[1:0] <= 2'b00;
+          2'b01:
+            BHT[1:0] <= 2'b00;
+          2'b10:
+            BHT[1:0] <= 2'b00;
+          2'b11:
+            BHT[1:0] <= 2'b10;
+        endcase
+      end
+      else begin
+        BTB[ID_EX_pc[6:2]] <= {jump_pc[31:2], 2'b01};
+        TAG[ID_EX_pc[6:2]] <= ID_EX_pc[31:0];
+        case (BHT[1:0])
+          2'b00:
+            BHT[1:0] <= 2'b01;
+          2'b01:
+            BHT[1:0] <= 2'b11;
+          2'b10:
+            BHT[1:0] <= 2'b11;
+          2'b11:
+            BHT[1:0] <= 2'b11;
+        endcase
+      end
     end
   end
 endmodule

@@ -479,7 +479,7 @@ module Branch_Predictor(input reset, input is_stall, input [31:0] current_pc, in
         TAG[i] = 32'b0;
       end
     end
-    if(is_branch) begin
+    if(is_branch && jump_pc != ID_EX_pc + 4) begin
       BTB[ID_EX_pc[6:2]] = {jump_pc[31:2], 2'b01};
       TAG[ID_EX_pc[6:2]] = ID_EX_pc[31:0];
     end
