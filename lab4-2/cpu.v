@@ -97,6 +97,7 @@ module CPU(input reset,       // positive reset signal
     .current_pc(current_pc),
     .is_branch(is_branch),
     .ID_EX_pc(ID_EX_pc),
+    .IF_ID_pc(IF_ID_pc),
     .branch_occured(branch_occured),
     .is_pc_plus_4(is_pc_plus_4),
     .jump_pc(jump_pc),
@@ -431,62 +432,50 @@ module Branch_Manager (input reset, input [31:0] ID_EX_alu_op, input [31:0] ID_E
       is_jal_jalr = 1;
       branch_occured = 1;
       is_pc_plus_4 = 0;
-      if(IF_ID_pc != ID_EX_pc + ID_EX_imm) begin
+      if(IF_ID_pc != ID_EX_pc + ID_EX_imm)
         is_branch = 1;
-        jump_pc = ID_EX_pc + ID_EX_imm;
-      end
-      else begin
+      else
         is_branch = 0;
-        jump_pc = 0;
-      end
+      jump_pc = ID_EX_pc + ID_EX_imm;
     end
     else if(ID_EX_alu_op[6:0] == `JALR) begin
       is_jal_jalr = 1;
       branch_occured = 1;
       is_pc_plus_4 = 0;
-      if(IF_ID_pc != ID_EX_rs1_data + ID_EX_imm) begin
+      if(IF_ID_pc != ID_EX_rs1_data + ID_EX_imm)
         is_branch = 1;
-        jump_pc = ID_EX_rs1_data + ID_EX_imm;
-      end
-      else begin
+      else
         is_branch = 0;
-        jump_pc = 0;
-      end
+      jump_pc = ID_EX_rs1_data + ID_EX_imm;
     end
     else if(ID_EX_alu_op[6:0] == `BRANCH && alu_bcond) begin
       branch_occured = 1;
       is_pc_plus_4 = 0;
-      if(IF_ID_pc != ID_EX_pc + ID_EX_imm) begin
+      if(IF_ID_pc != ID_EX_pc + ID_EX_imm)
         is_branch = 1;
-        jump_pc = ID_EX_pc + ID_EX_imm;
-      end
-      else begin
+      else
         is_branch = 0;
-        jump_pc = 0;
-      end
+      jump_pc = ID_EX_pc + ID_EX_imm;
     end
     else if(ID_EX_alu_op[6:0] == `BRANCH && !alu_bcond) begin
       branch_occured = 1;
       is_pc_plus_4 = 1;
-      if(IF_ID_pc != ID_EX_pc + 4) begin
+      if(IF_ID_pc != ID_EX_pc + 4)
         is_branch = 1;
-        jump_pc = ID_EX_pc + 4;
-      end
-      else begin
+      else
         is_branch = 0;
-        jump_pc = 0;
-      end
+      jump_pc = ID_EX_pc + 4;
     end
     else begin
       is_pc_plus_4 = 1;
       branch_occured = 0;
       is_branch = 0;
-      jump_pc = 0;
+      jump_pc = ID_EX_pc + 4;
     end
   end
 endmodule
 
-module Branch_Predictor(input reset, input clk, input is_stall, input [31:0] current_pc, input is_branch, input [31:0] ID_EX_pc, input branch_occured, input is_pc_plus_4, input [31:0] jump_pc, output reg [31:0]predict_pc);
+module Branch_Predictor(input reset, input clk, input is_stall, input [31:0] current_pc, input is_branch, input [31:0] IF_ID_pc, input [31:0] ID_EX_pc, input branch_occured, input is_pc_plus_4, input [31:0] jump_pc, output reg [31:0]predict_pc);
   integer i;
   reg [31:0] TAG [31:0];
   reg [31:0] BTB [31:0]; // 2 bit LSB used to valid
