@@ -132,6 +132,7 @@ module CPU(input reset,       // positive reset signal
     end
     else if(!is_stall) begin
       IF_ID_inst <= inst; IF_ID_pc <= current_pc;
+      $display("inst - %x", inst);
     end
   end
 
@@ -492,6 +493,7 @@ module PC(input reset, input clk, input [31:0]next_pc, output reg [31:0]current_
       current_pc <= 0;
     else begin
       current_pc <= next_pc;
+      // $display("pc - %x", current_pc);
     end
   end
 endmodule
