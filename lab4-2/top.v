@@ -6,7 +6,6 @@ module top;
   reg clk;
   wire is_halted;
   reg [31:0] total_cycle;
-  integer fd;
 
   CPU cpu(
     .reset(reset), 
@@ -21,8 +20,6 @@ module top;
     total_cycle = 32'b0;
     #1 reset = 1;         // Drive 1 to reset register values
     #6 reset = 0;
-    
-    fd = $fopen("reginfo.txt", "w");
   end
 
   // Generate clock
@@ -44,11 +41,6 @@ module top;
       for (i = 0; i < 32; i = i + 1)
         $display("%d %x\n", i, cpu.reg_file.rf[i]);
       $finish();
-    end
-
-    $fdisplay(fd, "TOTAL CYCLE %d", total_cycle);
-    for (i = 0; i < 32; i = i + 1) begin
-      $fdisplay(fd, "%d %x", i, cpu.reg_file.rf[i]);
     end
   end
 
